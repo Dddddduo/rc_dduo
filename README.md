@@ -1,5 +1,11 @@
 # rc_dduo — 外部 HTTP 通知可靠投递服务
 
+[![CI](https://github.com/Dddddduo/rc_dduo/actions/workflows/ci.yml/badge.svg)](https://github.com/Dddddduo/rc_dduo/actions/workflows/ci.yml)
+![Java 8](https://img.shields.io/badge/Java-8-orange)
+![Spring Boot 2.7.18](https://img.shields.io/badge/Spring%20Boot-2.7.18-green)
+![Tests 43/43](https://img.shields.io/badge/tests-43%2F43-brightgreen)
+![License MIT](https://img.shields.io/badge/license-MIT-blue)
+
 面试作业 MVP:接收多个业务系统提交的外部通知请求,**尽可能可靠地投递**到不同供应商的 API(URL / Header / Body 各不相同)。业务方不关心返回值,只要求送达。
 
 技术栈:Spring Boot 2.7.18 / Java 8 / H2(可平滑替换 MySQL)/ 纯 JdbcTemplate。
@@ -7,7 +13,7 @@
 | 交付物 | 状态 |
 |---|---|
 | 可运行 MVP 代码 | ✅ |
-| 自动化测试 | ✅ 39/39 通过(单元 + 端到端真实 HTTP) |
+| 自动化测试 | ✅ 43/43 通过(单元 + 端到端真实 HTTP) |
 | 全流程演示脚本 | ✅ `scripts/demo.sh`,已实跑验证 |
 | 崩溃恢复(kill -9)演示 | ✅ 实测不丢消息 |
 | 设计文档(本 README) | ✅ |
@@ -29,7 +35,7 @@
 4. **状态机 + 乐观锁 claim**:并发正确性建立在数据库行级原子性上,多实例安全,不引入分布式锁中间件。
 5. **重试有纪律**:暂态失败指数退避 + 全抖动(防重试风暴);永久失败(4xx)直接死信不浪费配额;耗尽进死信可人工重投;崩溃遗留的 SENDING 由超时扫描自动回收。
 
-**验证结论**:39 个测试全绿;demo 脚本五步(渲染送达/幂等/503 自动恢复/400 死信重投/统计)全部按预期通过;两次 `kill -9` 实战(供应商故障期与重启后)累计 3 条在途消息全部自动续投、零丢失。
+**验证结论**:43 个测试全绿;demo 脚本五步(渲染送达/幂等/503 自动恢复/400 死信重投/统计)全部按预期通过;两次 `kill -9` 实战(供应商故障期与重启后)累计 3 条在途消息全部自动续投、零丢失。
 
 **已知边界(不回避)**:at-least-once 意味着"请求已发出、供应商已处理、但回执未及写库"的崩溃窗口内存在重复投递可能——这是语义定义本身,不是实现缺陷;缓解手段(幂等键透传)已内置。
 
@@ -279,16 +285,18 @@ UPDATE notification_record SET status='PENDING', next_retry_at=0
 要求 **JDK 8**;Maven 无需安装——仓库自带 wrapper。
 
 ```bash
-./mvnw test                                     # 39 个测试
+./mvnw test                                     # 43 个测试
 ./mvnw spring-boot:run -Dspring-boot.run.profiles=demo   # 端口 8080
 bash scripts/demo.sh                            # 另开终端,一键全流程演示
 ```
 
 换真实供应商 = 改 `application.yml` 的 `targets`。换 MySQL = 改 datasource 三行。
 
+仓库自带 GitHub Actions CI(`.github/workflows/ci.yml`):push 到 `main` 与所有 PR 自动在 Temurin JDK 8 上跑 `./mvnw test`,顶部的 CI 徽章就是该 workflow 的实时状态。
+
 ## 7. 验证结果(实际执行记录,非纸面推演)
 
-### 7.1 自动化测试(39/39,`./mvnw test`)
+### 7.1 自动化测试(43/43,`./mvnw test`)
 
 | 测试类 | 数 | 覆盖 |
 |---|---|---|
@@ -361,6 +369,8 @@ src/main/java/com/dduo/notify/
 src/main/resources/  schema.sql、application.yml、application-demo.yml
 src/test/            单元 + 端到端集成测试(application-test.yml 确定性配置)
 scripts/demo.sh      五步全流程演示
+.github/workflows/ci.yml  GitHub Actions:push/PR 自动跑 ./mvnw test(Temurin JDK 8)
+LICENSE              MIT
 ```
 
 ## 11. AI 协作说明
@@ -376,7 +386,7 @@ scripts/demo.sh      五步全流程演示
 | 作业要求 | 交付位置 | 证据 |
 |---|---|---|
 | 接收多个业务系统的通知请求 | `POST /api/v1/notifications`(§3) | 三类事件实跑通过;202/200/400/404 全契约真实抓取 |
-| 尽可能可靠地投递到不同供应商 | Outbox + 状态机 + 退避重试 + 死信(§2/§4) | 39/39 测试;503 自愈、400 死信、kill -9 零丢失实测(§7) |
+| 尽可能可靠地投递到不同供应商 | Outbox + 状态机 + 退避重试 + 死信(§2/§4) | 43/43 测试;503 自愈、400 死信、kill -9 零丢失实测(§7) |
 | 不同供应商 URL/Header/Body 不同 | `notify.targets` 配置 + 模板渲染(§4.3) | mock 收到的三条请求各自渲染正确(§7.2 step1) |
 | 业务方不关心返回值、只要求送达 | 异步受理:落库即 202,投递在后台 | 幂等重复提交返回原记录,绝不重复投递(§7.2 step2) |
 | 设计文档:理解/架构/决策与取舍 | 本 README §1/§2/§4 | 7 条决策均含"选/弃/代价" |
