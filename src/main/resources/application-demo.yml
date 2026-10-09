@@ -1,0 +1,37 @@
+# demo profile:目标地址指向本进程内的 MockSupplier;退避缩短便于演示
+# jitter=none 让演示时序完全可预测(生产默认 random)
+notify:
+  delivery:
+    jitter: none
+    initial-backoff-ms: 1000
+    max-backoff-ms: 8000
+    stuck-timeout-ms: 10000
+  dispatch:
+    poll-interval-ms: 500
+  targets:
+    ad-register:
+      url: http://localhost:8080/_mock/notify
+      method: POST
+      headers:
+        X-Api-Key: "ad-system-key-001"
+        X-Event-Id: "{{payload.orderId}}"
+      body-template: >-
+        {"advertiserId":"{{payload.advertiserId}}","userId":"{{payload.userId}}",
+        "eventId":"{{payload.orderId}}","source":"{{payload.source}}"}
+    crm-payment:
+      url: http://localhost:8080/_mock/notify
+      method: POST
+      headers:
+        Authorization: "Bearer crm-token-xyz"
+        Content-Type: "application/json"
+      body-template: >-
+        {"contactId":"{{payload.customer.email}}","status":"SUBSCRIBED",
+        "planId":"{{payload.planId}}","amount":"{{payload.amount}}"}
+    inventory-order:
+      url: http://localhost:8080/_mock/notify
+      method: POST
+      headers:
+        X-Warehouse-Token: "wh-token-9"
+      body-template: >-
+        {"orderId":"{{payload.orderId}}","sku":"{{payload.items[0].sku}}",
+        "quantity":"{{payload.items[0].quantity}}","action":"DEDUCT"}

@@ -1,0 +1,69 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: rc_dduo-notify
+  datasource:
+    # H2 文件模式:数据活过进程重启,演示"崩溃恢复"零安装
+    # 生产替换为 MySQL 只需改 url/driver
+    url: jdbc:h2:file:./notify-db
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  sql:
+    init:
+      mode: always
+
+logging:
+  level:
+    com.dduo.notify: INFO
+
+# ===================== 核心配置 =====================
+notify:
+  dispatch:
+    enabled: true
+    poll-interval-ms: 1000
+    batch-size: 50
+    max-threads: 8
+    queue-capacity: 200
+  delivery:
+    connect-timeout-ms: 3000
+    read-timeout-ms: 5000
+    max-retry: 5
+    initial-backoff-ms: 5000
+    backoff-multiplier: 2.0
+    max-backoff-ms: 300000
+    stuck-timeout-ms: 300000
+
+  # 供应商适配:新增供应商 = 新增一段配置,不改代码
+  # 模板占位符 {{payload.xxx}} 取业务负载字段(嵌套用点号路径,数组用 [i])
+  targets:
+    ad-register:
+      url: http://localhost:8080/_mock/notify
+      method: POST
+      headers:
+        X-Api-Key: "ad-system-key-001"
+        X-Event-Id: "{{payload.orderId}}"
+      body-template: >-
+        {"advertiserId":"{{payload.advertiserId}}","userId":"{{payload.userId}}",
+        "eventId":"{{payload.orderId}}","source":"{{payload.source}}"}
+
+    crm-payment:
+      url: http://localhost:8080/_mock/notify
+      method: POST
+      headers:
+        Authorization: "Bearer crm-token-xyz"
+        Content-Type: "application/json"
+      body-template: >-
+        {"contactId":"{{payload.customer.email}}","status":"SUBSCRIBED",
+        "planId":"{{payload.planId}}","amount":"{{payload.amount}}"}
+
+    inventory-order:
+      url: http://localhost:8080/_mock/notify
+      method: POST
+      headers:
+        X-Warehouse-Token: "wh-token-9"
+      body-template: >-
+        {"orderId":"{{payload.orderId}}","sku":"{{payload.items[0].sku}}",
+        "quantity":"{{payload.items[0].quantity}}","action":"DEDUCT"}

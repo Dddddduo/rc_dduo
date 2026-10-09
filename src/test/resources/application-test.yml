@@ -1,0 +1,37 @@
+server:
+  port: 18080
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:notify-test;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+  sql:
+    init:
+      mode: always
+
+logging:
+  level:
+    com.dduo.notify: WARN
+
+# 测试里关自动轮询,由测试代码手动调 dispatcher.poll() 推进状态机,保证确定性
+notify:
+  dispatch:
+    enabled: false
+    poll-interval-ms: 999999
+  delivery:
+    max-retry: 3
+    # jitter=none + 固定的小退避:让"失败->RETRY_WAIT"的时间窗可预测,
+    # 测试手动 poll 时不会在两次断言之间瞬间烧完全部重试次数(确定性)
+    jitter: none
+    initial-backoff-ms: 300
+    backoff-multiplier: 2.0
+    stuck-timeout-ms: 60000
+  targets:
+    ad-register:
+      url: http://localhost:18080/_mock/notify
+      method: POST
+      headers:
+        X-Api-Key: "test-key"
+        X-Event-Id: "{{payload.orderId}}"
+      body-template: >-
+        {"eventId":"{{payload.orderId}}","userId":"{{payload.userId}}"}
