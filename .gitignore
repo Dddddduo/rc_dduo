@@ -36,3 +36,6 @@ build/
 notify-db.mv.db
 notify-db.trace.db
 data/
+
+### assignment materials (not for repo) ###
+*.pdf
